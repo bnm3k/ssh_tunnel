@@ -1,70 +1,66 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"log"
-	"os"
-	"path/filepath"
+	"net"
+	"strings"
 
-	"golang.org/x/crypto/ssh"
+	flag "github.com/spf13/pflag"
 )
 
-func createSshConfig(username, keyFile string) *ssh.ClientConfig {
-	// knownHosts := sshConfigPath("known_hosts")
-	// knownHostsCallback, err := knownhosts.New(knownHosts)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+func parseSSHArg(arg string) (user string, host string, port string, err error) {
+	parts := strings.SplitN(arg, "@", 2)
+	if len(parts) != 2 {
+		err = errors.New("invalid ssh arg")
+		return
+	}
+	user = parts[0]
+	if user == "" {
+		err = errors.New("empty username")
+		return
+	}
 
-	key, err := os.ReadFile(keyFile)
+	addr := parts[1]
+	host, port, err = net.SplitHostPort(addr)
 	if err != nil {
-		log.Fatal(err)
+		if strings.Contains(err.Error(), "missing port in address") {
+			host = addr
+			err = nil
+		}
 	}
 
-	// create the signer for this private key
-	signer, err := ssh.ParsePrivateKey(key)
-	if err != nil {
-		log.Fatal("unable to parse private key: %v", err)
-	}
-
-	return &ssh.ClientConfig{
-		User: username,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		HostKeyAlgorithms: []string{
-			ssh.KeyAlgoED25519,
-		},
-	}
-}
-
-func sshConfigPath(filename string) string {
-	return filepath.Join(os.Getenv("HOME"), ".ssh", filename)
+	return
 }
 
 func main() {
-	username := "bnm"
-	keyFile := sshConfigPath("id_ed25519")
-	addr := "localhost:2222"
+	// args
+	ssh := ""
+	var localPort uint16
+	var remotePort uint16
+	var keyFile string
 
-	config := createSshConfig(username, keyFile)
+	// get cli args
+	flag.StringVarP(&ssh, "ssh", "s", "", "the ssh endpoint (user and address) with the format user@host:port. If port is omitted it defaults to 22")
+	flag.StringVarP(&keyFile, "identity_file", "i", "~/.ssh/id_ed25519", "key file")
+	flag.Uint16VarP(&localPort, "local_port", "l", 0, "local port. Defaults to 0 i.e. random port is picked")
+	flag.Uint16VarP(&remotePort, "remote_port", "r", 0, "remote port")
+	flag.Parse()
 
-	client, err := ssh.Dial("tcp", addr, config)
+	// check args
+	user, host, port, err := parseSSHArg(ssh)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer client.Close()
-
-	// each client conn can support multiple interactive sessions
-	session, err := client.NewSession()
-	if err != nil {
-		log.Fatal(err)
+	if port == "" {
+		port = "22"
 	}
-	defer session.Close()
 
-	session.Stdout = os.Stdout
-	cmd := "uname -a"
-	if err := session.Run(cmd); err != nil {
-		log.Fatal("Failed to run: " + err.Error())
+	if remotePort == 0 {
+		log.Fatal("provide remote port")
 	}
+
+	fmt.Printf("ssh tunnel: [localhost:%d] <-> [%s@%s:%s'] <-> [:%d]\n",
+		localPort, user, host, port, remotePort)
 }
