@@ -66,7 +66,7 @@ func main() {
 	// get home dir
 	currUser, err := user.Current()
 	if err != nil {
-		log.Fatal("On get current user: ", err)
+		log.Fatal("Error on get current user: ", err)
 	}
 	homeDir := currUser.HomeDir
 
@@ -86,14 +86,14 @@ func main() {
 	// check args
 	user, host, port, err := parseSSHArg(sshArg)
 	if err != nil {
-		log.Fatal("On parse SSH arg: ", err)
+		log.Fatal("Error on parse SSH arg: ", err)
 	}
 	if port == "" {
 		port = "22"
 	}
 
 	if remotePort == 0 {
-		log.Fatal("Remote port missing. Provide remote port")
+		log.Fatal("Error. Remote port arg missing.")
 	}
 
 	// [localhost:<localPort>] <-> [<user>@<host>:<port>'] <-> [:<remotePort>]
@@ -101,14 +101,14 @@ func main() {
 	// get ssh config
 	config, err := createSSHConfig(user, keyFilePath)
 	if err != nil {
-		log.Fatal("On create SSH config: ", err)
+		log.Fatal("Error on create SSH config: ", err)
 	}
 
 	// create ssh sshClient
 	sshAddr := host + ":" + port
 	sshClient, err := ssh.Dial("tcp", sshAddr, config)
 	if err != nil {
-		log.Fatal("On dial to SSH endpoint: ", err)
+		log.Fatal("Error on dial to SSH endpoint: ", err)
 	}
 	defer sshClient.Close()
 	log.Printf("Connected to SSH: %s@%s\n", user, sshAddr)
@@ -117,7 +117,7 @@ func main() {
 	// sessions
 	session, err := sshClient.NewSession()
 	if err != nil {
-		log.Fatal("On create session: ", err)
+		log.Fatal("Error on create session: ", err)
 	}
 	defer session.Close()
 	log.Println("Created SSH session")
@@ -126,7 +126,7 @@ func main() {
 	localAddr := fmt.Sprintf("localhost:%d", localPort)
 	listener, err := net.Listen("tcp", localAddr)
 	if err != nil {
-		log.Fatalf("On create listener at '%d': %v", localPort, err)
+		log.Fatalf("Error on create listener at '%d': %v", localPort, err)
 	}
 	defer listener.Close()
 	log.Printf("Listening for local connections at: %s\n", localAddr)
@@ -153,11 +153,11 @@ loop:
 				// listener closed
 				break loop
 			}
-			log.Fatal("On accept: ", err)
+			log.Fatal("Error on accept: ", err)
 		}
 		remoteConn, err := sshClient.Dial("tcp", remoteAddr)
 		if err != nil {
-			log.Fatalf("On conn to remote address (%s) via tunnel: %v", remoteAddr, err)
+			log.Fatalf("Error on conn to remote address (%s) via tunnel: %v", remoteAddr, err)
 		}
 
 		log.Printf("Tunnel established: local [%s] <-> remote [%s]\n",
