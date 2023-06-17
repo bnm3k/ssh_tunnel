@@ -77,7 +77,7 @@ func main() {
 	var keyFilePath string = filepath.Join(homeDir, ".ssh", "id_ed25519")
 
 	// get cli args
-	flag.StringVarP(&sshArg, "ssh", "s", "", "the ssh endpoint (user and address) with the format user@host:port. If port is omitted it defaults to 22")
+	flag.StringVarP(&sshArg, "ssh", "s", "", "the ssh endpoint (user and address) with the format user@host:port. Defaults is 22")
 	flag.StringVarP(&keyFilePath, "identity_file", "i", keyFilePath, "key file")
 	flag.Uint16VarP(&localPort, "local_port", "l", localPort, "local port. Defaults to 0 ie random port is picked")
 	flag.Uint16VarP(&remotePort, "remote_port", "r", 0, "remote port")
