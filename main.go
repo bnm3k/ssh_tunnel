@@ -8,9 +8,11 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/signal"
 	"os/user"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	flag "github.com/spf13/pflag"
 	"golang.org/x/crypto/ssh"
@@ -129,28 +131,46 @@ func main() {
 	defer listener.Close()
 	log.Printf("Listening for local connections at: %s\n", localAddr)
 
+	// ctx
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// handle close signal
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		sig := <-sigs
+		log.Printf("received signal: %s\n", sig.String())
+		cancel()
+		listener.Close()
+	}()
+
 	remoteAddr := fmt.Sprintf("localhost:%d", remotePort)
-	ctx := context.Background()
+loop:
 	for {
 		localConn, err := listener.Accept()
 		if err != nil {
+			if strings.Contains(err.Error(), "use of closed network connection") {
+				// listener closed
+				break loop
+			}
 			log.Fatal("On accept: ", err)
 		}
-
 		remoteConn, err := sshClient.Dial("tcp", remoteAddr)
 		if err != nil {
-			log.Fatal("On conn to remote address via tunnel: ", err)
+			log.Fatalf("On conn to remote address (%s) via tunnel: %v", remoteAddr, err)
 		}
 
 		log.Printf("Tunnel established: local [%s] <-> remote [%s]\n",
 			localConn.LocalAddr(), remoteAddr)
 
-		pipe(ctx, localConn, remoteConn)
+		go createTunnel(ctx, localConn, remoteConn)
 	}
+	log.Println("Exiting")
 }
 
-func pipe(ctx context.Context, local net.Conn, remote net.Conn) {
+func createTunnel(ctx context.Context, local net.Conn, remote net.Conn) {
 	ctx, cancel := context.WithCancel(ctx)
+
 	go func() {
 		io.Copy(local, remote)
 		cancel()
