@@ -145,6 +145,7 @@ func main() {
 	}()
 
 	remoteAddr := fmt.Sprintf("localhost:%d", remotePort)
+	id := 0
 loop:
 	for {
 		localConn, err := listener.Accept()
@@ -160,15 +161,16 @@ loop:
 			log.Fatalf("Error on conn to remote address (%s) via tunnel: %v", remoteAddr, err)
 		}
 
-		log.Printf("Tunnel established: local [%s] <-> remote [%s]\n",
-			localConn.LocalAddr(), remoteAddr)
+		id++
+		log.Printf("Tunnel [%d] established: local [%s] <-> remote [%s]\n",
+			id, localConn.LocalAddr(), remoteAddr)
 
-		go createTunnel(ctx, localConn, remoteConn)
+		go createTunnel(ctx, id, localConn, remoteConn)
 	}
 	log.Println("Exiting")
 }
 
-func createTunnel(ctx context.Context, local net.Conn, remote net.Conn) {
+func createTunnel(ctx context.Context, id int, local net.Conn, remote net.Conn) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	go func() {
@@ -184,5 +186,5 @@ func createTunnel(ctx context.Context, local net.Conn, remote net.Conn) {
 	<-ctx.Done()
 	remote.Close()
 	local.Close()
-	log.Printf("Tunnel closed for: %s\n", local.RemoteAddr())
+	log.Printf("Tunnel [%d] closed for: %s\n", id, local.RemoteAddr())
 }
