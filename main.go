@@ -163,7 +163,7 @@ loop:
 
 		id++
 		log.Printf("Tunnel [%d] established: local [%s] <-> remote [%s]\n",
-			id, localConn.LocalAddr(), remoteAddr)
+			id, localConn.RemoteAddr(), remoteAddr)
 
 		go createTunnel(ctx, id, localConn, remoteConn)
 	}
